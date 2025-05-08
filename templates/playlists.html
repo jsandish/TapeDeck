@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Playlists{% endblock %}
+
+{% block additional_head %}
+<style>
+    .playlist-card {
+        transition: all 0.2s ease;
+    }
+    .playlist-card:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        transform: translateY(-3px);
+    }
+    .permission-badge-1 {
+        background-color: #6c757d;
+    }
+    .permission-badge-2 {
+        background-color: #0d6efd;
+    }
+    .permission-badge-3 {
+        background-color: #198754;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1>
+            <i class="fas fa-list-ul me-2"></i>My Playlists
+            <a href="{{ url_for('routes.create_playlist') }}" class="btn btn-primary float-end">
+                <i class="fas fa-plus me-1"></i>Create Playlist
+            </a>
+        </h1>
+    </div>
+</div>
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+    {% for playlist in playlists %}
+    <div class="col">
+        <div class="card h-100 playlist-card">
+            <div class="card-body">
+                <h5 class="card-title">
+                    {{ playlist.playlist_name }}
+                    {% set permission = playlist.users.filter_by(user_id=current_user.user_id).first().permissions %}
+                    {% if permission == 1 %}
+                        <span class="badge permission-badge-1 float-end" title="Read Only">
+                            <i class="fas fa-eye"></i>
+                        </span>
+                    {% elif permission == 2 %}
+                        <span class="badge permission-badge-2 float-end" title="Can Edit">
+                            <i class="fas fa-edit"></i>
+                        </span>
+                    {% elif permission == 3 %}
+                        <span class="badge permission-badge-3 float-end" title="Admin">
+                            <i class="fas fa-crown"></i>
+                        </span>
+                    {% endif %}
+                </h5>
+                
+                <p class="card-text text-muted mb-3">
+                    <small>
+                        <i class="far fa-calendar-alt me-1"></i>Created: 
+                        {{ playlist.created_at.strftime('%Y-%m-%d') }}
+                    </small>
+                </p>
+                
+                <p class="card-text">
+                    <i class="fas fa-user me-1"></i>Created by: 
+                    {% if playlist.created_by == current_user.user_id %}
+                        <span class="fw-bold">You</span>
+                    {% else %}
+                        {{ playlist.creator.username }}
+                    {% endif %}
+                </p>
+                
+                <!-- Show song count -->
+                <p class="card-text">
+                    <i class="fas fa-music me-1"></i>
+                    {% set song_count = playlist.songs.count() %}
+                    {% if song_count == 0 %}
+                        No songs
+                    {% elif song_count == 1 %}
+                        1 song
+                    {% else %}
+                        {{ song_count }} songs
+                    {% endif %}
+                </p>
+                
+                <!-- Show collaborator count -->
+                {% set collaborator_count = playlist.users.count() - 1 %}
+                <p class="card-text">
+                    <i class="fas fa-users me-1"></i>
+                    {% if collaborator_count == 0 %}
+                        No collaborators
+                    {% elif collaborator_count == 1 %}
+                        1 collaborator
+                    {% else %}
+                        {{ collaborator_count }} collaborators
+                    {% endif %}
+                </p>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('routes.view_playlist', playlist_id=playlist.playlist_id) }}" class="btn btn-outline-primary w-100">
+                    <i class="fas fa-headphones me-1"></i>Open Playlist
+                </a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+        <div class="alert alert-info text-center">
+            <i class="fas fa-music me-2"></i>You don't have any playlists yet.
+            <div class="mt-3">
+                <a href="{{ url_for('routes.create_playlist') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Create Your First Playlist
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Permission legend -->
+{% if playlists %}
+<div class="card mt-4">
+    <div class="card-header">
+        Permission Legend
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <span class="badge permission-badge-1 me-2">
+                    <i class="fas fa-eye"></i>
+                </span>
+                Read Only - You can view but not edit
+            </div>
+            <div class="col-md-4">
+                <span class="badge permission-badge-2 me-2">
+                    <i class="fas fa-edit"></i>
+                </span>
+                Editor - You can add/remove songs
+            </div>
+            <div class="col-md-4">
+                <span class="badge permission-badge-3 me-2">
+                    <i class="fas fa-crown"></i>
+                </span>
+                Admin - You can manage collaborators
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

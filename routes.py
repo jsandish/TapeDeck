@@ -514,4 +514,4 @@ def delete_mood(mood_id):
         db.session.commit()
         flash('Mood deleted successfully', 'success')
     
-    return redirect(url_for('routes.moods'))s
+    return redirect(url_for('routes.moods'))

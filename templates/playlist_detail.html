@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}{{ playlist.playlist_name }}{% endblock %}
+
+{% block additional_head %}
+<style>
+    .song-row:hover {
+        background-color: rgba(0, 0, 0, 0.03);
+    }
+    .rating-stars {
+        color: #ffc107;
+    }
+    .permission-label {
+        font-size: 0.75rem;
+        padding: 0.15rem 0.5rem;
+    }
+    .collaborator-avatar {
+        width: 32px;
+        height: 32px;
+        line-height: 32px;
+        text-align: center;
+        border-radius: 50%;
+        background-color: #6c757d;
+        color: white;
+        display: inline-block;
+        font-weight: bold;
+        margin-right: 8px;
+    }
+    .tab-pane {
+        padding: 20px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('routes.playlists') }}">Playlists</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ playlist.playlist_name }}</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col">
+        <h1>{{ playlist.playlist_name }}</h1>
+        <p class="text-muted">
+            Created by 
+            {% if playlist.created_by == current_user.user_id %}
+                <span class="fw-bold">You</span>
+            {% else %}
+                {{ playlist.creator.username }}
+            {% endif %}
+            on {{ playlist.created_at.strftime('%B %d, %Y') }}
+        </p>
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-4" id="playlistTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="songs-tab" data-bs-toggle="tab" data-bs-target="#songs-tab-pane" type="button" role="tab" aria-controls="songs-tab-pane" aria-selected="true">
+            <i class="fas fa-music me-1"></i>Songs ({{ songs|length }})
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="collaborators-tab" data-bs-toggle="tab" data-bs-target="#collaborators-tab-pane" type="button" role="tab" aria-controls="collaborators-tab-pane" aria-selected="false">
+            <i class="fas fa-users me-1"></i>Collaborators ({{ collaborators|length }})
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="playlistTabsContent">
+    <!-- Songs Tab -->
+    <div class="tab-pane fade show active" id="songs-tab-pane" role="tabpanel" aria-labelledby="songs-tab" tabindex="0">
+        {% if songs %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Song</th>
+                            <th>Artist</th>
+                            <th>Album</th>
+                            <th>Your Rating</th>
+                            {% if permission_level >= 2 %}
+                            <th>Actions</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for index, song in enumerate(songs, start=1) %}
+                        <tr class="song-row">
+                            <td>{{ index }}</td>
+                            <td>{{ song.song_name }}</td>
+                            <td>{{ song.artist.artist_name }}</td>
+                            <td>{{ song.album.album_name if song.album else '-' }}</td>
+                            <td>
+                                {% set rating = song.ratings|selectattr('user_id', 'equalto', current_user.user_id)|first %}
+                                {% if rating %}
+                                <div class="rating-stars">
+                                    {% for i in range(1, 6) %}
+                                        {% if i <= rating.rating|int %}
+                                            <i class="fas fa-star"></i>
+                                        {% elif i <= rating.rating + 0.5 %}
+                                            <i class="fas fa-star-half-alt"></i>
+                                        {% else %}
+                                            <i class="far fa-star"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                    <span class="ms-1 text-muted">({{ rating.rating }})</span>
+                                </div>
+                                {% else %}
+                                <a href="{{ url_for('routes.rate_song', song_id=song.song_id) }}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="far fa-star me-1"></i>Rate
+                                </a>
+                                {% endif %}
+                            </td>
+                            {% if permission_level >= 2 %}
+                            <td>
+                                <form action="{{ url_for('routes.remove_song_from_playlist', playlist_id=playlist.playlist_id, song_id=song.song_id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove this song from the playlist?')">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </form>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>This playlist doesn't have any songs yet.
+            {% if permission_level >= 2 %}
+            <div class="mt-2">
+                <a href="{{ url_for('routes.songs') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Add Songs to Playlist
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Collaborators Tab -->
+    <div class="tab-pane fade" id="collaborators-tab-pane" role="tabpanel" aria-labelledby="collaborators-tab" tabindex="0">
+        <div class="list-group">
+            {% for user, permission in collaborators %}
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="collaborator-avatar">{{ user.username[0].upper() }}</div>
+                    <span class="fw-bold">{{ user.username }}</span>
+                    <small class="text-muted">{{ user.email }}</small>
+                    
+                    {% if user.user_id == current_user.user_id %}
+                    <span class="badge bg-secondary ms-2">You</span>
+                    {% endif %}
+                    
+                    {% if user.user_id == playlist.created_by %}
+                    <span class="badge bg-info ms-2">Creator</span>
+                    {% endif %}
+                </div>
+                <div>
+                    {% if permission == 1 %}
+                    <span class="badge bg-secondary permission-label">Read Only</span>
+                    {% elif permission == 2 %}
+                    <span class="badge bg-primary permission-label">Editor</span>
+                    {% elif permission == 3 %}
+                    <span class="badge bg-success permission-label">Admin</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Add Collaborator Form -->
+        {% if permission_level >= 3 %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Add Collaborator</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('routes.add_collaborator', playlist_id=playlist.playlist_id) }}" method="POST">
+                    {{ collaborator_form.hidden_tag() }}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            {{ collaborator_form.user_email.label(class="form-label") }}
+                            {{ collaborator_form.user_email(class="form-control", placeholder="Enter user email") }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ collaborator_form.permissions.label(class="form-label") }}
+                            {{ collaborator_form.permissions(class="form-select") }}
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            {{ collaborator_form.submit(class="btn btn-primary w-100") }}
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="mt-3">
+            <p><strong>Permission levels:</strong></p>
+            <ul>
+                <li><strong>Read Only:</strong> Can view playlist songs but cannot modify</li>
+                <li><strong>Editor:</strong> Can add and remove songs from the playlist</li>
+                <li><strong>Admin:</strong> Can add/remove songs and manage collaborators</li>
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
