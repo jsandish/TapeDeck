@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Moods{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3">
+            <i class="fas fa-smile text-primary"></i> Your Moods
+        </h1>
+        <p class="lead">Categorize your music by mood to find the perfect song for any feeling.</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-list"></i> Your Mood Collection
+                </h5>
+                <button class="btn btn-sm btn-light" data-bs-toggle="collapse" data-bs-target="#addMoodCollapse">
+                    <i class="fas fa-plus"></i> Add Mood
+                </button>
+            </div>
+            
+            <div class="collapse" id="addMoodCollapse">
+                <div class="card-body bg-light">
+                    <form method="POST" action="{{ url_for('routes.add_mood') }}">
+                        {{ form.hidden_tag() }}
+                        <div class="input-group">
+                            {{ form.mood(class="form-control", placeholder="Mood name") }}
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Add
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card-body">
+                {% if moods %}
+                    <div class="row">
+                        {% for mood in moods %}
+                            <div class="col-md-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body d-flex align-items-center">
+                                        <i class="fas fa-smile fa-2x text-secondary me-3"></i>
+                                        <h5 class="mb-0">{{ mood.mood }}</h5>
+                                    </div>
+                                    <div class="card-footer bg-white d-flex justify-content-end">
+                                        <form method="POST" action="{{ url_for('routes.delete_mood', mood_id=mood.mood_id) }}" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                onclick="return confirm('Are you sure you want to delete this mood?')">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-frown fa-3x text-muted mb-3"></i>
+                        <p class="lead">You don't have any moods yet.</p>
+                        <p>Click the "Add Mood" button to create your first mood.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> About Moods</h5>
+            </div>
+            <div class="card-body">
+                <p>Moods help you categorize music based on how it makes you feel.</p>
+                <p>When you rate a song, you can associate it with a mood, making it easier to find music that matches your current feeling.</p>
+                <p>Some example moods:</p>
+                <ul>
+                    <li>Happy</li>
+                    <li>Energetic</li>
+                    <li>Relaxed</li>
+                    <li>Focused</li>
+                    <li>Nostalgic</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Mood Stats</h5>
+            </div>
+            <div class="card-body">
+                <p>View songs by mood to discover patterns in your music taste.</p>
+                <a href="{{ url_for('routes.songs') }}" class="btn btn-outline-success w-100">
+                    <i class="fas fa-search"></i> Browse Songs by Mood
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add any mood-specific JavaScript here
+    });
+</script>
+{% endblock %}

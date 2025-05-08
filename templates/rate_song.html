@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}Rate Song{% endblock %}
+
+{% block additional_head %}
+<style>
+    .star-rating-input {
+        font-size: 1.5rem;
+        cursor: pointer;
+    }
+    .star-rating-input i {
+        color: #ffc107;
+        margin-right: 5px;
+        transition: all 0.2s ease;
+    }
+    .star-rating-input i:hover {
+        transform: scale(1.2);
+    }
+    #new-mood-container {
+        transition: all 0.3s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-star me-2"></i>Rate Song
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <h5>{{ song.song_name }}</h5>
+                    <p class="text-muted mb-0">
+                        <strong>Artist:</strong> {{ song.artist.artist_name }}
+                        {% if song.album %}
+                            <br><strong>Album:</strong> {{ song.album.album_name }}
+                        {% endif %}
+                        {% if song.release_date %}
+                            <br><strong>Released:</strong> {{ song.release_date }}
+                        {% endif %}
+                        {% if song.genre %}
+                            <br><strong>Genre:</strong> {{ song.genre }}
+                        {% endif %}
+                    </p>
+                </div>
+
+                <form method="POST" action="{{ url_for('routes.rate_song', song_id=song.song_id) }}">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Rating</label>
+                        <div class="star-rating-input mb-2">
+                            <i class="far fa-star" data-value="1"></i>
+                            <i class="far fa-star" data-value="2"></i>
+                            <i class="far fa-star" data-value="3"></i>
+                            <i class="far fa-star" data-value="4"></i>
+                            <i class="far fa-star" data-value="5"></i>
+                        </div>
+                        {{ form.rating(type="hidden", class="form-control" + (" is-invalid" if form.rating.errors else "")) }}
+                        {% if form.rating.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.rating.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="text-muted">Click on a star to set your rating (1-5)</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.mood_id.label(class="form-label") }}
+                        <div class="d-flex align-items-center">
+                            {{ form.mood_id(class="form-control" + (" is-invalid" if form.mood_id.errors else "")) }}
+                            <a href="#" id="new-mood-link" class="btn btn-sm btn-outline-secondary ms-2" title="Add New Mood">
+                                <i class="fas fa-plus"></i>
+                            </a>
+                        </div>
+                        {% if form.mood_id.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.mood_id.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="text-muted">Select a mood that matches how this song makes you feel</small>
+                        
+                        <div id="new-mood-container" class="mt-2 d-none">
+                            <form id="new-mood-form" action="{{ url_for('routes.add_mood') }}" method="POST" class="input-group">
+                                <input type="text" id="new_mood_input" name="mood" class="form-control" placeholder="New mood name">
+                                <button type="submit" class="btn btn-outline-primary">Add</button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.notes.label(class="form-label") }}
+                        {{ form.notes(class="form-control" + (" is-invalid" if form.notes.errors else ""), rows=4) }}
+                        {% if form.notes.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.notes.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="text-muted">Optional - add any thoughts or memories about this song</small>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('routes.songs') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>Back to Songs
+                        </a>
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Star rating functionality
+        const ratingInput = document.getElementById('rating');
+        const stars = document.querySelectorAll('.star-rating-input i');
+        
+        // Set initial stars based on value
+        if (ratingInput.value) {
+            updateStars(stars, parseFloat(ratingInput.value));
+        }
+        
+        stars.forEach((star, index) => {
+            // Show hover effect
+            star.addEventListener('mouseover', function() {
+                updateStars(stars, index + 1);
+            });
+            
+            // Handle click
+            star.addEventListener('click', function() {
+                ratingInput.value = index + 1;
+                updateStars(stars, index + 1);
+            });
+        });
+        
+        // Reset to actual value when not hovering
+        document.querySelector('.star-rating-input').addEventListener('mouseout', function() {
+            updateStars(stars, parseFloat(ratingInput.value) || 0);
+        });
+        
+        function updateStars(stars, rating) {
+            stars.forEach((star, index) => {
+                if (index < rating) {
+                    star.classList.remove('far');
+                    star.classList.add('fas');
+                } else {
+                    star.classList.remove('fas');
+                    star.classList.add('far');
+                }
+            });
+        }
+        
+        // New mood link functionality
+        const newMoodLink = document.getElementById('new-mood-link');
+        const newMoodContainer = document.getElementById('new-mood-container');
+        const newMoodInput = document.getElementById('new_mood_input');
+        
+        if (newMoodLink && newMoodContainer) {
+            newMoodLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                newMoodContainer.classList.toggle('d-none');
+                if (!newMoodContainer.classList.contains('d-none')) {
+                    newMoodInput.focus();
+                }
+            });
+        }
+        
+        // AJAX form submission for new mood
+        const newMoodForm = document.getElementById('new-mood-form');
+        if (newMoodForm) {
+            newMoodForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(newMoodForm);
+                
+                fetch(newMoodForm.getAttribute('action'), {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Add new option to select and select it
+                        const moodSelect = document.getElementById('mood_id');
+                        const option = document.createElement('option');
+                        option.value = data.mood_id;
+                        option.textContent = data.mood_name;
+                        moodSelect.appendChild(option);
+                        moodSelect.value = data.mood_id;
+                        
+                        // Reset and hide form
+                        newMoodForm.reset();
+                        newMoodContainer.classList.add('d-none');
+                        
+                        // Show success message
+                        alert('Mood added successfully!');
+                    } else {
+                        alert(data.error || 'Failed to add mood');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred');
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}

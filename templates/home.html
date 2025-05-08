@@ -1,58 +1,112 @@
 {% extends "base.html" %}
 
-{% block title %}Profile{% endblock %}
+{% block title %}Home{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
+<div class="row">
     <div class="col-md-8">
-        <div class="card">
+        <div class="card mb-4">
             <div class="card-header bg-primary text-white">
-                <h4 class="mb-0">User Profile</h4>
+                <h4><i class="fas fa-home"></i> Welcome to TapeDeck</h4>
             </div>
             <div class="card-body">
-                <form method="POST" action="">
-                    {{ form.hidden_tag() }}
-                    <div class="mb-3">
-                        {{ form.username.label(class="form-label") }}
-                        {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else "")) }}
-                        {% for error in form.username.errors %}
-                            <div class="invalid-feedback">{{ error }}</div>
+                <p class="lead">Track, rate, and organize your music collection!</p>
+                
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="fas fa-music fa-3x mb-3 text-primary"></i>
+                                <h5>Manage Songs</h5>
+                                <p>Rate songs, add notes, and categorize by mood</p>
+                                <a href="{{ url_for('routes.songs') }}" class="btn btn-outline-primary">View Songs</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="fas fa-list fa-3x mb-3 text-success"></i>
+                                <h5>Create Playlists</h5>
+                                <p>Organize songs into playlists and share with friends</p>
+                                <a href="{{ url_for('routes.playlists') }}" class="btn btn-outline-success">View Playlists</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Recent Activity Card -->
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5><i class="fas fa-clock"></i> Your Recent Ratings</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_ratings %}
+                    <ul class="list-group list-group-flush">
+                        {% for rating in recent_ratings %}
+                            <li class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ rating.song.song_name }}</strong>
+                                        <div class="text-muted small">{{ rating.song.artist.artist_name }}</div>
+                                    </div>
+                                    <div class="text-warning">
+                                        {% for i in range(5) %}
+                                            {% if i < rating.rating|int %}
+                                                <i class="fas fa-star"></i>
+                                            {% elif i < rating.rating and i >= rating.rating|int %}
+                                                <i class="fas fa-star-half-alt"></i>
+                                            {% else %}
+                                                <i class="far fa-star"></i>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% if rating.mood %}
+                                    <span class="badge bg-secondary">{{ rating.mood.mood }}</span>
+                                {% endif %}
+                            </li>
                         {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="text-center p-4">
+                        <p class="text-muted">You haven't rated any songs yet.</p>
+                        <a href="{{ url_for('routes.songs') }}" class="btn btn-sm btn-primary">Start Rating</a>
                     </div>
-                    <div class="mb-3">
-                        {{ form.email.label(class="form-label") }}
-                        {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else ""), type="email") }}
-                        {% for error in form.email.errors %}
-                            <div class="invalid-feedback">{{ error }}</div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Playlists Card -->
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5><i class="fas fa-list"></i> Your Playlists</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if playlists %}
+                    <ul class="list-group list-group-flush">
+                        {% for playlist in playlists %}
+                            <li class="list-group-item">
+                                <a href="{{ url_for('routes.view_playlist', playlist_id=playlist.playlist_id) }}" class="d-flex justify-content-between align-items-center text-decoration-none">
+                                    <span>{{ playlist.playlist_name }}</span>
+                                    <span class="badge bg-primary rounded-pill">{{ playlist.songs.count() }}</span>
+                                </a>
+                            </li>
                         {% endfor %}
+                    </ul>
+                    <div class="card-footer">
+                        <a href="{{ url_for('routes.create_playlist') }}" class="btn btn-sm btn-success w-100">Create New Playlist</a>
                     </div>
-                    <div class="mb-3">
-                        {{ form.current_password.label(class="form-label") }}
-                        {{ form.current_password(class="form-control" + (" is-invalid" if form.current_password.errors else ""), type="password") }}
-                        {% for error in form.current_password.errors %}
-                            <div class="invalid-feedback">{{ error }}</div>
-                        {% endfor %}
-                        <small class="form-text text-muted">Required to save changes</small>
+                {% else %}
+                    <div class="text-center p-4">
+                        <p class="text-muted">You don't have any playlists yet.</p>
+                        <a href="{{ url_for('routes.create_playlist') }}" class="btn btn-sm btn-success">Create Playlist</a>
                     </div>
-                    <div class="mb-3">
-                        {{ form.new_password.label(class="form-label") }}
-                        {{ form.new_password(class="form-control" + (" is-invalid" if form.new_password.errors else ""), type="password") }}
-                        {% for error in form.new_password.errors %}
-                            <div class="invalid-feedback">{{ error }}</div>
-                        {% endfor %}
-                        <small class="form-text text-muted">Leave blank to keep current password</small>
-                    </div>
-                    <div class="mb-3">
-                        {{ form.confirm_password.label(class="form-label") }}
-                        {{ form.confirm_password(class="form-control" + (" is-invalid" if form.confirm_password.errors else ""), type="password") }}
-                        {% for error in form.confirm_password.errors %}
-                            <div class="invalid-feedback">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-                    <div class="d-grid">
-                        {{ form.submit(class="btn btn-primary") }}
-                    </div>
-                </form>
+                {% endif %}
             </div>
         </div>
     </div>
