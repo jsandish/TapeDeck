@@ -48,7 +48,7 @@
                     </p>
                 </div>
 
-                <form method="POST" action="{{ url_for('routes.rate_song', song_id=song.song_id) }}">
+                <form id="song-rating-form" method="POST" action="{{ url_for('routes.rate_song', song_id=song.song_id) }}">
                     {{ form.hidden_tag() }}
                     
                     <div class="mb-3">
@@ -60,7 +60,7 @@
                             <i class="far fa-star" data-value="4"></i>
                             <i class="far fa-star" data-value="5"></i>
                         </div>
-                        {{ form.rating(type="hidden", class="form-control" + (" is-invalid" if form.rating.errors else "")) }}
+                        {{ form.rating(type="hidden", class="form-control" + (" is-invalid" if form.rating.errors else ""), required="required") }}
                         {% if form.rating.errors %}
                             <div class="invalid-feedback">
                                 {% for error in form.rating.errors %}
@@ -68,13 +68,16 @@
                                 {% endfor %}
                             </div>
                         {% endif %}
+                        <div id="rating-error" class="invalid-feedback d-none">
+                            Please select a rating by clicking on a star
+                        </div>
                         <small class="text-muted">Click on a star to set your rating (1-5)</small>
                     </div>
                     
                     <div class="mb-3">
                         {{ form.mood_id.label(class="form-label") }}
                         <div class="d-flex align-items-center">
-                            {{ form.mood_id(class="form-control" + (" is-invalid" if form.mood_id.errors else "")) }}
+                            {{ form.mood_id(class="form-select" + (" is-invalid" if form.mood_id.errors else "")) }}
                             <a href="#" id="new-mood-link" class="btn btn-sm btn-outline-secondary ms-2" title="Add New Mood">
                                 <i class="fas fa-plus"></i>
                             </a>
@@ -87,16 +90,16 @@
                             </div>
                         {% endif %}
                         <small class="text-muted">Select a mood that matches how this song makes you feel</small>
-                        
-                        <div id="new-mood-container" class="mt-2 d-none">
-                            <form id="new-mood-form" action="{{ url_for('routes.add_mood') }}" method="POST" class="input-group">
-                                <input type="text" id="new_mood_input" name="mood" class="form-control" placeholder="New mood name">
-                                <button type="submit" class="btn btn-outline-primary">Add</button>
-                            </form>
+                    </div>
+                    
+                    <div id="new-mood-container" class="mt-2 d-none">
+                        <div id="new-mood-form-container" class="input-group">
+                            <input type="text" id="new_mood_input" name="new_mood" class="form-control" placeholder="New mood name">
+                            <button type="button" id="add-mood-btn" class="btn btn-outline-primary">Add</button>
                         </div>
                     </div>
                     
-                    <div class="mb-3">
+                    <div class="mb-3 mt-3">
                         {{ form.notes.label(class="form-label") }}
                         {{ form.notes(class="form-control" + (" is-invalid" if form.notes.errors else ""), rows=4) }}
                         {% if form.notes.errors %}
@@ -113,7 +116,9 @@
                         <a href="{{ url_for('routes.songs') }}" class="btn btn-secondary">
                             <i class="fas fa-arrow-left me-1"></i>Back to Songs
                         </a>
-                        {{ form.submit(class="btn btn-primary") }}
+                        <button type="submit" id="save-rating-btn" class="btn btn-primary">
+                            Save Rating
+                        </button>
                     </div>
                 </form>
             </div>
@@ -128,6 +133,7 @@
         // Star rating functionality
         const ratingInput = document.getElementById('rating');
         const stars = document.querySelectorAll('.star-rating-input i');
+        const ratingError = document.getElementById('rating-error');
         
         // Set initial stars based on value
         if (ratingInput.value) {
@@ -144,6 +150,8 @@
             star.addEventListener('click', function() {
                 ratingInput.value = index + 1;
                 updateStars(stars, index + 1);
+                ratingError.classList.add('d-none');
+                ratingInput.classList.remove('is-invalid');
             });
         });
         
@@ -164,6 +172,22 @@
             });
         }
         
+        // Form submission handling with validation
+        const ratingForm = document.getElementById('song-rating-form');
+        ratingForm.addEventListener('submit', function(e) {
+            // Validate rating field
+            if (!ratingInput.value || parseFloat(ratingInput.value) < 1) {
+                e.preventDefault();
+                ratingInput.classList.add('is-invalid');
+                ratingError.classList.remove('d-none');
+                console.log('Form submission blocked: No rating selected');
+                return false;
+            }
+            
+            // Log for debugging
+            console.log('Form submitting with rating:', ratingInput.value);
+        });
+        
         // New mood link functionality
         const newMoodLink = document.getElementById('new-mood-link');
         const newMoodContainer = document.getElementById('new-mood-container');
@@ -179,22 +203,37 @@
             });
         }
         
-        // AJAX form submission for new mood
-        const newMoodForm = document.getElementById('new-mood-form');
-        if (newMoodForm) {
-            newMoodForm.addEventListener('submit', function(e) {
-                e.preventDefault();
+        // AJAX for adding new mood
+        const addMoodBtn = document.getElementById('add-mood-btn');
+        if (addMoodBtn) {
+            addMoodBtn.addEventListener('click', function() {
+                const moodValue = newMoodInput.value.trim();
+                if (!moodValue) {
+                    alert('Please enter a mood name');
+                    return;
+                }
                 
-                const formData = new FormData(newMoodForm);
+                // Create form data
+                const formData = new FormData();
+                formData.append('mood', moodValue);
                 
-                fetch(newMoodForm.getAttribute('action'), {
+                // Add CSRF token
+                const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+                formData.append('csrf_token', csrfToken);
+                
+                fetch('{{ url_for("routes.add_mood") }}', {
                     method: 'POST',
                     body: formData,
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest'
                     }
                 })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.success) {
                         // Add new option to select and select it
@@ -206,10 +245,9 @@
                         moodSelect.value = data.mood_id;
                         
                         // Reset and hide form
-                        newMoodForm.reset();
+                        newMoodInput.value = '';
                         newMoodContainer.classList.add('d-none');
                         
-                        // Show success message
                         alert('Mood added successfully!');
                     } else {
                         alert(data.error || 'Failed to add mood');
@@ -217,7 +255,7 @@
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('An error occurred');
+                    alert('An error occurred while adding the mood');
                 });
             });
         }

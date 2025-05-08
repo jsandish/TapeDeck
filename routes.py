@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from sqlalchemy import or_
 
@@ -248,19 +248,20 @@ def rate_song(song_id):
     
     form = SongRatingForm()
     form.mood_id.choices = [(m.mood_id, m.mood) for m in Mood.query.filter_by(user_id=current_user.user_id).all()]
-    form.mood_id.choices.insert(0, (None, 'No Mood'))
+    # Using '0' instead of None for "No Mood" option
+    form.mood_id.choices.insert(0, (0, 'No Mood'))
     
     if request.method == 'GET':
         if rating:
             form.rating.data = rating.rating
-            form.mood_id.data = rating.mood_id
+            form.mood_id.data = rating.mood_id if rating.mood_id else 0  # Default to 0 if no mood
             form.notes.data = rating.notes
     
     if form.validate_on_submit():
         if rating:
             # Update existing rating
             rating.rating = form.rating.data
-            rating.mood_id = form.mood_id.data if form.mood_id.data else None
+            rating.mood_id = form.mood_id.data if form.mood_id.data > 0 else None  # Convert 0 back to None
             rating.notes = form.notes.data
         else:
             # Create new rating
@@ -268,7 +269,7 @@ def rate_song(song_id):
                 user_id=current_user.user_id,
                 song_id=song_id,
                 rating=form.rating.data,
-                mood_id=form.mood_id.data if form.mood_id.data else None,
+                mood_id=form.mood_id.data if form.mood_id.data > 0 else None,  # Convert 0 back to None
                 notes=form.notes.data
             )
             db.session.add(rating)
@@ -283,6 +284,15 @@ def rate_song(song_id):
 @login_required
 def add_to_playlist():
     form = AddToPlaylistForm()
+    
+    # Set the choices for the playlist_id field before validating
+    form.playlist_id.choices = [
+        (p.playlist_id, p.playlist_name) 
+        for p in Playlist.query.join(playlist_manager).filter(
+            playlist_manager.c.user_id == current_user.user_id,
+            playlist_manager.c.permissions >= 2  # User can edit
+        ).all()
+    ]
     
     if form.validate_on_submit():
         playlist = Playlist.query.get_or_404(form.playlist_id.data)
@@ -486,11 +496,23 @@ def add_mood():
         ).first()
         
         if existing_mood:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'success': False,
+                    'error': f'Mood "{form.mood.data}" already exists'
+                })
             flash(f'Mood "{form.mood.data}" already exists', 'warning')
         else:
             mood = Mood(mood=form.mood.data, user_id=current_user.user_id)
             db.session.add(mood)
             db.session.commit()
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'success': True,
+                    'mood_id': mood.mood_id,
+                    'mood_name': mood.mood
+                })
             flash(f'Mood "{form.mood.data}" added successfully', 'success')
     
     return redirect(url_for('routes.moods'))

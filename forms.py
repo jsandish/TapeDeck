@@ -33,7 +33,7 @@ class SongForm(FlaskForm):
 
 class SongRatingForm(FlaskForm):
     rating = FloatField('Rating (1-5)', validators=[DataRequired(), NumberRange(min=1, max=5)])
-    mood_id = SelectField('Mood', coerce=int, validators=[Optional()])
+    mood_id = SelectField('Mood', coerce=int, validators=[Optional()])  # Keep the coerce=int
     notes = TextAreaField('Notes', validators=[Optional()])
     submit = SubmitField('Save Rating')
 
