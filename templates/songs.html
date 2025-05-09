@@ -37,6 +37,20 @@
 <!-- Filter Section -->
 <div class="filter-section">
     <form action="{{ url_for('routes.songs') }}" method="GET" class="row g-3">
+        <!-- Search Box -->
+        <div class="col-12">
+            <div class="input-group mb-3">
+                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                <input type="text" class="form-control" name="search" id="search" placeholder="Search by song, artist or album..." value="{{ request.args.get('search', '') }}">
+                <button class="btn btn-primary" type="submit">Search</button>
+                {% if request.args.get('search') %}
+                <a href="{{ url_for('routes.songs', rating=request.args.get('rating'), mood_id=request.args.get('mood_id'), genre=request.args.get('genre'), artist_id=request.args.get('artist_id')) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        
         <div class="col-md-3">
             <label for="rating" class="form-label">Min Rating</label>
             <select class="form-select" name="rating" id="rating">
@@ -85,6 +99,17 @@
         </div>
     </form>
 </div>
+
+<!-- Search Results Indicator -->
+{% if search_query %}
+<div class="alert alert-info search-results-indicator">
+    <i class="fas fa-info-circle me-2"></i>
+    Found <strong>{{ results_count }}</strong> result{% if results_count != 1 %}s{% endif %} for "<strong>{{ search_query }}</strong>"
+    <a href="{{ url_for('routes.songs', rating=request.args.get('rating'), mood_id=request.args.get('mood_id'), genre=request.args.get('genre'), artist_id=request.args.get('artist_id')) }}" class="float-end">
+        <i class="fas fa-times"></i> Clear search
+    </a>
+</div>
+{% endif %}
 
 <!-- Songs List -->
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
@@ -224,6 +249,127 @@
                 songIdInput.value = songId;
             });
         }
+        
+        // Focus on search box when page loads if empty
+        const searchBox = document.getElementById('search');
+        if (searchBox && searchBox.value === '') {
+            // Add a slight delay to ensure the page is fully loaded
+            setTimeout(() => {
+                searchBox.focus();
+            }, 100);
+        }
+        
+        // Add keyboard shortcut (Ctrl+F or Cmd+F) to focus search box
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                // Only prevent default if we're not already in the search box
+                if (document.activeElement !== searchBox) {
+                    e.preventDefault();
+                    searchBox.focus();
+                    searchBox.select();
+                }
+            }
+            
+            // Press Escape to clear search
+            if (e.key === 'Escape' && document.activeElement === searchBox && searchBox.value !== '') {
+                searchBox.value = '';
+                searchBox.form.submit();
+            }
+        });
+        
+        // Highlight search terms in results if there's a search query
+        const searchQuery = '{{ search_query }}';
+        if (searchQuery) {
+            const terms = searchQuery.toLowerCase().split(' ').filter(term => term.length > 2);
+            if (terms.length > 0) {
+                // Find all text in song cards
+                const songCards = document.querySelectorAll('.song-card');
+                songCards.forEach(card => {
+                    const textNodes = getTextNodes(card);
+                    textNodes.forEach(node => {
+                        terms.forEach(term => {
+                            highlightText(node, term);
+                        });
+                    });
+                });
+            }
+        }
+        
+        // Function to get all text nodes in an element
+        function getTextNodes(element) {
+            const textNodes = [];
+            const walker = document.createTreeWalker(
+                element,
+                NodeFilter.SHOW_TEXT,
+                null,
+                false
+            );
+            
+            let node;
+            while (node = walker.nextNode()) {
+                if (node.nodeValue.trim() !== '') {
+                    textNodes.push(node);
+                }
+            }
+            
+            return textNodes;
+        }
+        
+        // Function to highlight text in a node
+        function highlightText(node, term) {
+            const text = node.nodeValue;
+            const lowerText = text.toLowerCase();
+            const index = lowerText.indexOf(term.toLowerCase());
+            
+            if (index >= 0) {
+                const span = document.createElement('span');
+                span.className = 'search-highlight';
+                
+                const before = document.createTextNode(text.substring(0, index));
+                const match = document.createTextNode(text.substring(index, index + term.length));
+                const after = document.createTextNode(text.substring(index + term.length));
+                
+                span.appendChild(match);
+                
+                const parent = node.parentNode;
+                parent.replaceChild(after, node);
+                parent.insertBefore(span, after);
+                parent.insertBefore(before, span);
+            }
+        }
     });
 </script>
 {% endblock %}
+
+<style>
+    .rating-stars {
+        color: #ffc107;
+    }
+    .song-card {
+        transition: all 0.2s ease;
+    }
+    .song-card:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .filter-section {
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    .search-box {
+        margin-bottom: 15px;
+    }
+    .search-box .form-control:focus {
+        box-shadow: none;
+        border-color: #80bdff;
+    }
+    .search-results-indicator {
+        font-size: 0.9rem;
+        margin-bottom: 15px;
+    }
+    .search-highlight {
+        background-color: rgba(255, 193, 7, 0.3);
+        padding: 0 2px;
+    }
+</style>

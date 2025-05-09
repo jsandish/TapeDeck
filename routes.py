@@ -148,12 +148,24 @@ def songs():
     mood_filter = request.args.get('mood_id')
     genre_filter = request.args.get('genre')
     artist_filter = request.args.get('artist_id')
+    search_query = request.args.get('search', '').strip()
     
     # Base query - get all songs with user's ratings if they exist
     query = db.session.query(Song, SongRating).\
         outerjoin(SongRating, (Song.song_id == SongRating.song_id) & 
                  (SongRating.user_id == current_user.user_id)).\
-        join(Artist)
+        join(Artist).\
+        outerjoin(Album)  # Join with Album to allow searching by album name
+    
+    # Apply search if provided
+    if search_query:
+        query = query.filter(
+            or_(
+                Song.song_name.ilike(f'%{search_query}%'),
+                Artist.artist_name.ilike(f'%{search_query}%'),
+                Album.album_name.ilike(f'%{search_query}%')
+            )
+        )
     
     # Apply filters if provided
     if rating_filter:
@@ -181,6 +193,9 @@ def songs():
     # Get all genres for the filter dropdown (unique values)
     genres = db.session.query(Song.genre).distinct().filter(Song.genre.isnot(None)).all()
     
+    # Get the count of results for display
+    results_count = len(results)
+    
     # Prepare a form for adding songs to playlists
     add_to_playlist_form = AddToPlaylistForm()
     add_to_playlist_form.playlist_id.choices = [
@@ -194,10 +209,12 @@ def songs():
     return render_template(
         'songs.html', 
         results=results,
+        results_count=results_count,
         moods=moods,
         artists=artists,
         genres=genres,
-        add_to_playlist_form=add_to_playlist_form
+        add_to_playlist_form=add_to_playlist_form,
+        search_query=search_query
     )
 
 @bp.route('/songs/add', methods=['GET', 'POST'])
